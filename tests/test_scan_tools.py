@@ -163,6 +163,25 @@ class CatalogValidationTests(Base):
         self.assertIn("cannot read", out.stderr)
         self.assertNotIn("Traceback", out.stderr)
 
+    def test_non_utf8_file_is_rejected(self):
+        # A tools/list response is JSON text, so bytes that do not decode as
+        # UTF-8 are invalid input (exit 2), not a suspicious catalog (exit 1).
+        path = Path(self._tmp.name) / "binary.json"
+        path.write_bytes(b'\xff\xfe{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}')
+
+        out = self.run_cli(str(path))
+        self.assertEqual(out.returncode, 2, f"expected exit 2, got {out.returncode}")
+        self.assertEqual(out.stdout, "", "nothing should go to stdout on invalid input")
+        self.assertIn("not valid UTF-8", out.stderr)
+        self.assertIn("0xff", out.stderr, "the message should name the offending byte")
+        self.assertNotIn("Traceback", out.stderr, "no traceback on invalid input")
+
+    def test_non_utf8_load_catalog_raises_catalog_error(self):
+        path = Path(self._tmp.name) / "binary2.json"
+        path.write_bytes(b"\x80\x81\x82")
+        with self.assertRaises(scan_tools.CatalogError):
+            scan_tools.load_catalog(path)
+
     def test_directory_path_is_rejected_without_traceback(self):
         out = self.run_cli(self._tmp.name)
         self.assertEqual(out.returncode, 2)
