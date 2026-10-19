@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: CLI contract (exit codes)
+        run: |
+          python3 scan_tools.py examples/tools-clean.json
+
+          status=0
+          python3 scan_tools.py examples/tools-poisoned.json > /dev/null || status=$?
+          test "$status" -eq 1 || { echo "poisoned catalog: expected exit 1, got $status"; exit 1; }
+
+          echo '{}' > /tmp/not-a-catalog.json
+          status=0
+          python3 scan_tools.py /tmp/not-a-catalog.json 2>/dev/null || status=$?
+          test "$status" -eq 2 || { echo "invalid input: expected exit 2, got $status"; exit 1; }
+
+          echo '{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}' > /tmp/empty-catalog.json
+          python3 scan_tools.py /tmp/empty-catalog.json

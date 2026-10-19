@@ -19,6 +19,8 @@ def add(a: int, b: int) -> int:
 That description is served to the client verbatim. This script flags the obvious cases
 so that reviewing a tool catalog becomes a routine command instead of a good intention.
 
+**No dependencies** — Python 3.9+ standard library only.
+
 ## Usage
 
 ```bash
@@ -36,47 +38,124 @@ python3 scan_tools.py tools.json
 python3 scan_tools.py tools.json
 ```
 
-Output:
+Output on the bundled poisoned example:
 
-```
-SUSPECT: add -> contains 'read'
-SUSPECT: add -> contains '/tmp'
-SUSPECT: add -> contains 'do not mention'
+```console
+$ python3 scan_tools.py examples/tools-poisoned.json
+SUSPECT: add -> matched 'read' (file/system access)
+SUSPECT: add -> matched '/tmp' (file/system access)
+SUSPECT: add -> matched 'include its' (file/system access)
+SUSPECT: add -> matched 'Do not mention' (concealment)
+4 signal(s) across 2 tool(s) — review by hand
 ```
 
-Exit code is `0` when clean and `1` when something is flagged, so it can run in CI:
+A clean catalog:
+
+```console
+$ python3 scan_tools.py examples/tools-clean.json
+clean: no suspicious patterns found (2 tool(s) scanned)
+```
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Valid catalog, no signals |
+| `1` | Valid catalog, at least one signal |
+| `2` | Invalid input or usage error — message on stderr |
+
+The three states are separate on purpose. A catalog the tool could not read is **never**
+reported as clean: `0` means "we read it and found nothing", not "we gave up quietly".
 
 ```bash
-./scan_tools.py tools.json || echo "review the tool catalog"
+python3 scan_tools.py tools.json \
+  && echo "no keyword signals (not a safety proof)" \
+  || echo "signals found — review the catalog"
 ```
 
-A clean catalog short-circuits early:
+## Accepted input
 
+A JSON object shaped like a `tools/list` result:
+
+```json
+{"jsonrpc": "2.0", "id": 2, "result": {"tools": [ ... ], "nextCursor": "..."}}
 ```
-$ python3 scan_tools.py examples/tools-clean.json
-clean: no suspicious patterns found
-```
+
+Every entry of `result.tools` must be an object with:
+
+| Field | Type | Required |
+|---|---|---|
+| `name` | non-empty string | yes — required by the MCP specification |
+| `inputSchema` | object | yes — required by the MCP specification |
+| `description` | string or `null` | no |
+
+Extra fields (`title`, `outputSchema`, `annotations`, `_meta`, `nextCursor`, …) are
+accepted and ignored. An empty `tools` array is a valid catalog and scans clean.
+
+Anything else is rejected with exit `2`: invalid JSON, a non-object top level, a
+JSON-RPC `error` response, a missing/non-object `result`, a missing or non-array
+`tools`, a non-object tool, a missing/empty `name`, a missing `inputSchema`, or a
+non-string `description`.
 
 ## What it does — and doesn't
 
-- **Does:** catch keyword-level poison — file reads, "ignore previous instructions", and
-  the concealment lines ("do not mention") that turn a bug into an attack.
-- **Doesn't:** catch a cleverly-worded instruction. This is a smoke detector, not a lock.
-  Reviewing descriptions by hand is not a control either — descriptions can change after
+**Does:** catch keyword-level poison — file reads, "ignore previous instructions", and
+the concealment lines ("do not mention") that turn a bug into an attack. Matching is
+case-insensitive and word-boundary aware, so "thread" does not match "read".
+
+**Doesn't:** catch a cleverly-worded instruction. This is a smoke detector, not a lock.
+
+- **Absence of signals does not mean the server is safe.** Exit `0` means "no keyword
+  matched", nothing more.
+- Reviewing descriptions by hand is not a control either — descriptions can change after
   you approved them.
 
-The control that actually holds is **capability**: if the tool cannot reach a sensitive
-file, an instruction to read it has nothing to exfiltrate. Narrow scope, sandbox, separate
-read tools from write/egress tools, and log every call with a `trigger_source`.
+### Known false positives
+
+The signals are deliberately broad, so a review is cheap. Expect noise on:
+
+- `read` in legitimate prose — "open the file in read-only mode", "read the value back"
+- `/etc`, `/tmp`, `.env`, `passwd` in the descriptions of genuine file or system tools
+- `first, ` in ordinary instructions — "first, validate the input"
+- `contents of` in ordinary prose
+
+### Known false negatives
+
+- **Paraphrases** — "consult", "inspect", "open", "load" instead of "read"
+- **Other fields** — only `description` is scanned. `title`, parameter descriptions
+  inside `inputSchema`, `outputSchema` descriptions, and server-level instructions are
+  *not* scanned, though the model can read them
+- **Multiple pages** — only the page you captured is scanned. If the response contains
+  `nextCursor`, fetch the next page and scan it too
+- **Other languages** — the patterns are English-only
+- **Obfuscation** — base64, homoglyphs, unicode tricks, instructions split across tools
+
+## The control that actually holds
+
+Keyword scanning is a review aid. The control that holds is **capability**: if the tool
+cannot reach a sensitive file, an instruction to read it has nothing to exfiltrate.
+Narrow scope, sandbox, separate read tools from write/egress tools, and log every call
+with a `trigger_source`.
 
 More context, and a hands-on walkthrough (build → poison → detect):
 <https://7sh1d0w7x.github.io/blog/tool-poisoning-by-hand.html>
 
+## Tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+28 tests covering catalog validation (every rejection path above), clean / suspicious /
+empty catalogs, word-boundary behaviour, exit codes, and stdout/stderr separation.
+CI runs the suite plus a CLI contract check.
+
 ## Files
 
-- `scan_tools.py` — the scanner (stdlib only, no dependencies)
-- `examples/tools-poisoned.json` — a real poisoned catalog (from the lab above)
+- `scan_tools.py` — the scanner (stdlib only)
+- `examples/tools-poisoned.json` — a poisoned catalog
 - `examples/tools-clean.json` — the same tools, before poisoning
+- `tests/test_scan_tools.py` — the suite
 
 ## License
 
