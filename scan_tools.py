@@ -128,6 +128,14 @@ def load_catalog(path):
         raise CatalogError(
             f"cannot read {path}: {err.strerror or err}"
         ) from None
+    except UnicodeDecodeError as err:
+        # A tools/list response is JSON text, and JSON text is UTF-8. Bytes that
+        # do not decode are invalid input (exit 2), not a suspicious catalog.
+        byte = err.object[err.start] if err.object else 0
+        raise CatalogError(
+            f"{path} is not valid UTF-8: byte 0x{byte:02x} at position {err.start} "
+            "(a tools/list response is JSON text, which must be UTF-8)"
+        ) from None
 
     try:
         data = json.loads(raw)

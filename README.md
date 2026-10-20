@@ -67,11 +67,30 @@ clean: no suspicious patterns found (2 tool(s) scanned)
 The three states are separate on purpose. A catalog the tool could not read is **never**
 reported as clean: `0` means "we read it and found nothing", not "we gave up quietly".
 
+Do not use `scanner && ok || bad`: that collapses exit `2` (nothing was scanned)
+into the same branch as `1` (signals found). Run the scanner once, keep the code,
+and branch on all three:
+
 ```bash
-python3 scan_tools.py tools.json \
-  && echo "no keyword signals (not a safety proof)" \
-  || echo "signals found — review the catalog"
+# Works under `set -e`: `|| status=$?` keeps a non-zero exit from aborting the
+# script before you can inspect it. The scanner's stderr stays visible.
+status=0
+python3 scan_tools.py tools.json || status=$?
+
+case "$status" in
+  0) echo "0 — valid catalog, no keyword signals (this is not a safety proof)" ;;
+  1) echo "1 — valid catalog, signals to review" ;;
+  2) echo "2 — invalid input or usage error; nothing was scanned" >&2 ;;
+  *) echo "unexpected exit code $status" >&2 ;;
+esac
+
+# Propagate the code so the script itself can gate CI.
+exit "$status"
 ```
+
+Note what `0` claims and what it does not: the catalog parsed, and no keyword in
+the signal list matched. It says nothing about whether the server is safe.
+
 
 ## Accepted input
 
