@@ -52,6 +52,8 @@ import json
 import re
 import sys
 
+VERSION = "1.1"
+
 # Keyword-level signals. Deliberately broad: reviewing a false positive is cheap,
 # missing a hidden instruction is not. Word-shaped signals use \b so that
 # "thread" does not match "read"; phrases stay as plain substrings.
@@ -195,13 +197,27 @@ def scan_tools(tools):
     return findings
 
 
+def print_footer(quiet):
+    """One line, once, only when a human is watching.
+
+    Rules: never when stdout is redirected (a pipe or a file), never with
+    --quiet. Machine consumers must be able to pipe the output unchanged.
+    """
+    if quiet or not sys.stdout.isatty():
+        return
+    print(f"mcp-tool-scanner {VERSION} \u00b7 by 7sh1d0w7x \u00b7 7sh1d0w7x.github.io")
+
+
 def main(argv):
-    if len(argv) != 2:
+    args = [a for a in argv[1:] if a != "--quiet"]
+    quiet = len(args) != len(argv) - 1
+
+    if len(args) != 1:
         print(__doc__.strip(), file=sys.stderr)
         return 2
 
     try:
-        tools = load_catalog(argv[1])
+        tools = load_catalog(args[0])
     except CatalogError as err:
         print(f"error: {err}", file=sys.stderr)
         return 2
@@ -210,11 +226,13 @@ def main(argv):
 
     if not findings:
         print(f"clean: no suspicious patterns found ({len(tools)} tool(s) scanned)")
+        print_footer(quiet)
         return 0
 
     for name, matched, category in findings:
         print(f"SUSPECT: {name} -> matched {matched!r} ({category})")
     print(f"{len(findings)} signal(s) across {len(tools)} tool(s) — review by hand")
+    print_footer(quiet)
     return 1
 
 

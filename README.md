@@ -42,6 +42,7 @@ Output on the bundled poisoned example:
 
 ```console
 $ python3 scan_tools.py examples/tools-poisoned.json
+python3 scan_tools.py examples/tools-poisoned.json --quiet   # fără linia de atribuire
 SUSPECT: add -> matched 'read' (file/system access)
 SUSPECT: add -> matched '/tmp' (file/system access)
 SUSPECT: add -> matched 'include its' (file/system access)
