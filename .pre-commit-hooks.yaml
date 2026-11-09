@@ -1,0 +1,6 @@
+- id: mcp-tool-scanner
+  name: scan MCP tool descriptions
+  description: Flags hidden instructions in a tools/list catalog.
+  entry: mcp-scan
+  language: python
+  files: '(^|/)(tools|mcp)[^/]*\.json$'
