@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-tool-scanner"
+version = "0.1.0"
+description = "Flags hidden instructions in MCP tool descriptions before an agent reads them."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Raul B." }]
+keywords = ["mcp", "security", "prompt-injection", "llm", "static-analysis"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Security",
+]
+
+[project.urls]
+Homepage = "https://github.com/7sh1d0w7x/mcp-tool-scanner"
+Issues = "https://github.com/7sh1d0w7x/mcp-tool-scanner/issues"
+
+[project.scripts]
+mcp-scan = "scan_tools:cli"
+
+[tool.setuptools]
+py-modules = ["scan_tools"]
