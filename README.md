@@ -21,10 +21,19 @@ so that reviewing a tool catalog becomes a routine command instead of a good int
 
 **No dependencies** — Python 3.9+ standard library only.
 
+## Install
+
+```bash
+pipx install git+https://github.com/7sh1d0w7x/mcp-tool-scanner
+mcp-scan tools.json
+```
+
+Or without installing: `python3 scan_tools.py tools.json` — same file, standard library only.
+
 ## Usage
 
 ```bash
-python3 scan_tools.py tools.json
+mcp-scan tools.json
 ```
 
 `tools.json` is the JSON-RPC response to a `tools/list` request. To capture it:
