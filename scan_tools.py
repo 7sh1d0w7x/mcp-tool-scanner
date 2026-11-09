@@ -218,5 +218,10 @@ def main(argv):
     return 1
 
 
-if __name__ == "__main__":
+def cli():
+    """Console-script entry point (`mcp-scan`)."""
     sys.exit(main(sys.argv))
+
+
+if __name__ == "__main__":
+    cli()
