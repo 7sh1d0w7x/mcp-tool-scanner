@@ -33,3 +33,8 @@ jobs:
 
           echo '{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}' > /tmp/empty-catalog.json
           python3 scan_tools.py /tmp/empty-catalog.json
+
+      - name: Action smoke test
+        uses: ./
+        with:
+          catalog: examples/tools-clean.json

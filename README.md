@@ -65,6 +65,19 @@ $ python3 scan_tools.py examples/tools-clean.json
 clean: no suspicious patterns found (2 tool(s) scanned)
 ```
 
+### In CI
+
+A composite action installs the scanner and fails the step when signals are found.
+
+```yaml
+- uses: 7sh1d0w7x/mcp-tool-scanner@main
+  with:
+    catalog: tools.json
+```
+
+`fail-on-findings: false` reports without failing. Pin a tag once the action
+ships in one.
+
 ## Exit codes
 
 | Code | Meaning |
