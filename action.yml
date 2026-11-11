@@ -1,0 +1,27 @@
+name: MCP Tool Scanner
+description: Scan an MCP tools/list catalog for hidden instructions in tool descriptions.
+author: 7sh1d0w7x
+branding:
+  icon: eye
+  color: purple
+inputs:
+  catalog:
+    description: Path to the tools/list JSON response
+    required: true
+  fail-on-findings:
+    description: Fail the step when signals are found (exit 1)
+    required: false
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        python3 -m pip install --user --quiet "${{ github.action_path }}"
+        export PATH="$HOME/.local/bin:$PATH"
+        if [ "${{ inputs.fail-on-findings }}" = "false" ]; then
+          mcp-scan "${{ inputs.catalog }}" || true
+        else
+          mcp-scan "${{ inputs.catalog }}"
+        fi
